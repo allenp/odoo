@@ -2,6 +2,7 @@
 import logging
 import os
 import time
+from os import listdir
 from os.path import join
 from threading import Thread, Lock
 from select import select
@@ -15,27 +16,20 @@ from openerp.tools.translate import _
 
 _logger = logging.getLogger(__name__)
 
-VENDOR_ID = 0x0922
-PRODUCT_ID = 0x8004
-DATA_MODE_GRAMS = 2
-DATA_MODE_OUNCES = 11
-
 try:
-    import usb.core as usbcore;
-    import usb.util
-    usbcore = True
+    import serial
 except ImportError:
-    _logger.error('Odoo module hw_scale_usb depends on the usb.core and usb.util modules')
-    usbcore = False
+    _logger.error('Odoo module hw_scale depends on the pyserial python module')
+    serial = None
 
 
-class UsbScale(Thread):
-
+class Scale(Thread):
     def __init__(self):
         Thread.__init__(self)
         self.lock = Lock()
         self.scalelock = Lock()
         self.status = {'status':'connecting', 'messages':[]}
+        self.input_dir = '/dev/serial/by-id/'
         self.weight = 0
         self.weight_info = 'ok'
         self.device = None
@@ -65,14 +59,29 @@ class UsbScale(Thread):
             if status == 'error' and message:
                 _logger.error('Scale Error: '+message)
             elif status == 'disconnected' and message:
-                _logger.warning('Disconnected Scale: %s', message)
+                _logger.info('Disconnected Scale: %s', message)
 
     def get_device(self):
         try:
-            device = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
-            device.set_configuration()
-            self.set_status('connected','Connected to '+ 'Device name here')
-            return device
+            if not os.path.exists(self.input_dir):
+                self.set_status('disconnected','Scale Not Found')
+                return None
+            devices = [ device for device in listdir(self.input_dir)]
+            scales  = [ device for device in devices if ('mettler' in device.lower()) or ('toledo' in device.lower()) ]
+            if len(scales) > 0:
+                print join(self.input_dir,scales[0])
+                self.set_status('connected','Connected to '+scales[0])
+                return serial.Serial(join(self.input_dir,scales[0]), 
+                        baudrate = 9600, 
+                        bytesize = serial.SEVENBITS, 
+                        stopbits = serial.STOPBITS_ONE, 
+                        parity   = serial.PARITY_EVEN, 
+                        #xonxoff  = serial.XON,
+                        timeout  = 0.02, 
+                        writeTimeout= 0.02)
+            else:
+                self.set_status('disconnected','Scale Not Found')
+                return None
         except Exception as e:
             self.set_status('error',str(e))
             return None
@@ -84,7 +93,7 @@ class UsbScale(Thread):
     def get_weight_info(self):
         self.lockedstart()
         return self.weight_info
-
+    
     def get_status(self):
         self.lockedstart()
         return self.status
@@ -93,33 +102,46 @@ class UsbScale(Thread):
         with self.scalelock:
             if self.device:
                 try:
-                  endpoint = self.device[0][(0,0)][0]
-                  preload = 3
-                  while preload > 0:
-                    device.read(endpoint.bEndpointAddress,
-                                endpoint.wMaxPacketSize)
-                    preload -= 1
+                    self.device.write('W')
+                    time.sleep(0.2)
+                    answer = []
 
-                    attempts = 10
-                    data = None
-                    while data is None and attemps > 0:
-                      try:
-                        data = device.read(endpoint.bEndpointAddress,
-                                            endpoint.wMaxPacketSize)
-                      except usb.core.USBError as e:
-                        data = None
-                        if e.args == ('Operation timed out',):
-                          attempts -= 10
-                          continue
+                    while True:
+                        char = self.device.read(1)
+                        if not char: 
+                            break
+                        else:
+                            answer.append(char)
 
-                    raw_weight = data[4] + data[5] * 256
-                    if data[2] == DATA_MODE_OUNCES:
-                      ounces = raw_weight * 0.1
-                      weight = ounces
-                    elif data[2] = DATA_MODE_GRAMS:
-                      grams = raw_weight
-                      weight = grams * .035274
-                      return weight
+                    if '?' in answer:
+                        stat = ord(answer[answer.index('?')+1])
+                        if stat == 0: 
+                            self.weight_info = 'ok'
+                        else:
+                            self.weight_info = []
+                            if stat & 1 :
+                                self.weight_info.append('moving')
+                            if stat & 1 << 1:
+                                self.weight_info.append('over_capacity')
+                            if stat & 1 << 2:
+                                self.weight_info.append('negative')
+                                self.weight = 0.0
+                            if stat & 1 << 3:
+                                self.weight_info.append('outside_zero_capture_range')
+                            if stat & 1 << 4:
+                                self.weight_info.append('center_of_zero')
+                            if stat & 1 << 5:
+                                self.weight_info.append('net_weight')
+                    else:
+                        answer = answer[1:-1]
+                        if 'N' in answer:
+                            answer = answer[0:-1]
+                        try:
+                            self.weight = float(''.join(answer))
+                        except ValueError as v:
+                            self.set_status('error','No data Received, please power-cycle the scale');
+                            self.device = None
+                        
                 except Exception as e:
                     self.set_status('error',str(e))
                     self.device = None
@@ -127,8 +149,8 @@ class UsbScale(Thread):
     def set_zero(self):
         with self.scalelock:
             if self.device:
-                try:
-                  print('Not implemented')
+                try: 
+                    self.device.write('Z')
                 except Exception as e:
                     self.set_status('error',str(e))
                     self.device = None
@@ -136,8 +158,8 @@ class UsbScale(Thread):
     def set_tare(self):
         with self.scalelock:
             if self.device:
-                try:
-                  print('Not implemented')
+                try: 
+                    self.device.write('T')
                 except Exception as e:
                     self.set_status('error',str(e))
                     self.device = None
@@ -145,19 +167,19 @@ class UsbScale(Thread):
     def clear_tare(self):
         with self.scalelock:
             if self.device:
-                try:
-                  print('Not implemented')
+                try: 
+                    self.device.write('C')
                 except Exception as e:
                     self.set_status('error',str(e))
                     self.device = None
 
     def run(self):
-        self.device = None
+        self.device   = None
 
-        while True:
+        while True: 
             if self.device:
                 self.read_weight()
-                time.sleep(0.3)
+                time.sleep(0.15)
             else:
                 with self.scalelock:
                     self.device = self.get_device()
@@ -165,9 +187,8 @@ class UsbScale(Thread):
                     time.sleep(5)
 
 scale_thread = None
-
-if usbcore:
-    scale_thread = UsbScale()
+if serial:
+    scale_thread = Scale()
     hw_proxy.drivers['scale'] = scale_thread
 
 class ScaleDriver(hw_proxy.Proxy):
@@ -194,4 +215,5 @@ class ScaleDriver(hw_proxy.Proxy):
         if scale_thread:
             scale_thread.clear_tare()
         return True
-
+        
+        
