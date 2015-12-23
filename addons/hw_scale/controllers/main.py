@@ -70,6 +70,13 @@ class UsbScale(Thread):
     def get_device(self):
         try:
             device = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
+
+            interface = 0
+
+            if device.is_kernel_driver_active(interface) is True:
+              device.detach_kernel_driver(interface)
+              usbcore.util.claim_interface(device, interface)
+
             device.set_configuration()
             self.set_status('connected','Connected to '+ 'Device name here')
             return device
