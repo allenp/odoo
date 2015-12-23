@@ -16,7 +16,7 @@ from openerp.tools.translate import _
 _logger = logging.getLogger(__name__)
 
 VENDOR_ID = 0x0922
-PRODUCT_ID = 0x8004
+PRODUCT_ID = 0x8003
 DATA_MODE_GRAMS = 2
 DATA_MODE_OUNCES = 11
 
@@ -116,7 +116,7 @@ class UsbScale(Thread):
                     if data[2] == DATA_MODE_OUNCES:
                       ounces = raw_weight * 0.1
                       weight = ounces
-                    elif data[2] = DATA_MODE_GRAMS:
+                    elif data[2] == DATA_MODE_GRAMS:
                       grams = raw_weight
                       weight = grams * .035274
                       return weight
