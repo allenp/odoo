@@ -162,7 +162,7 @@ class UsbScale(Thread):
 
         while True:
             if self.device:
-                self.read_weight()
+                self.weight = self.read_weight()
                 time.sleep(0.3)
             else:
                 with self.scalelock:
