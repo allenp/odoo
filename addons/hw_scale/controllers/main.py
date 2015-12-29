@@ -75,7 +75,7 @@ class UsbScale(Thread):
             if self.device.is_kernel_driver_active(interface) is True:
               self.device.detach_kernel_driver(interface)
               self.device.set_configuration()
-              usbcore.util.claim_interface(device, interface)
+              usbcore.util.claim_interface(self.device, interface)
 
             self.set_status('connected','Connected to '+ 'Device name here')
             return self.device
@@ -102,7 +102,7 @@ class UsbScale(Thread):
                   endpoint = self.device[0][(0,0)][0]
                   preload = 3
                   while preload > 0:
-                    device.read(endpoint.bEndpointAddress,
+                    self.device.read(endpoint.bEndpointAddress,
                                 endpoint.wMaxPacketSize)
                     preload -= 1
 
@@ -110,7 +110,7 @@ class UsbScale(Thread):
                     data = None
                     while data is None and attemps > 0:
                       try:
-                        data = device.read(endpoint.bEndpointAddress,
+                        data = self.device.read(endpoint.bEndpointAddress,
                                             endpoint.wMaxPacketSize)
                       except usb.core.USBError as e:
                         data = None
