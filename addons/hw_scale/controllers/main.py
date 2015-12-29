@@ -75,9 +75,9 @@ class UsbScale(Thread):
 
             if device.is_kernel_driver_active(interface) is True:
               device.detach_kernel_driver(interface)
+              device.set_configuration()
               usbcore.util.claim_interface(device, interface)
 
-            device.set_configuration()
             self.set_status('connected','Connected to '+ 'Device name here')
             return device
         except Exception as e:
