@@ -72,7 +72,7 @@ class UsbScale(Thread):
 
             interface = 0
 
-            if self.device is not None && self.device.is_kernel_driver_active(interface) is True:
+            if self.device != None && self.device.is_kernel_driver_active(interface) is True:
               self.device.detach_kernel_driver(interface)
               self.device.set_configuration()
               usbcore.util.claim_interface(self.device, interface)
