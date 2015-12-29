@@ -47,7 +47,7 @@ class UsbScale(Thread):
 
     def set_status(self, status, message = None):
         if status == self.status['status']:
-            if message != None and message != self.status['messages'][-1]:
+            if message is not None and message != self.status['messages'][-1]:
                 self.status['messages'].append(message)
 
                 if status == 'error' and message:
@@ -72,7 +72,7 @@ class UsbScale(Thread):
 
             interface = 0
 
-            if self.device != None && self.device.is_kernel_driver_active(interface) is True:
+            if self.device is not None and self.device.is_kernel_driver_active(interface) is True:
               self.device.detach_kernel_driver(interface)
               self.device.set_configuration()
               usbcore.util.claim_interface(self.device, interface)
