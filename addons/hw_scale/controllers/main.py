@@ -108,7 +108,7 @@ class UsbScale(Thread):
 
                     attempts = 10
                     data = None
-                    while data is None and attemps > 0:
+                    while data is None and attempts > 0:
                       try:
                         data = self.device.read(endpoint.bEndpointAddress,
                                             endpoint.wMaxPacketSize)
