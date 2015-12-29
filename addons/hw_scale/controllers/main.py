@@ -23,7 +23,6 @@ DATA_MODE_OUNCES = 11
 try:
     import usb.core as usbcore;
     import usb.util
-    usbcore = True
 except ImportError:
     _logger.error('Odoo module hw_scale_usb depends on the usb.core and usb.util modules')
     usbcore = False
@@ -69,17 +68,17 @@ class UsbScale(Thread):
 
     def get_device(self):
         try:
-            device = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
+            self.device = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
 
             interface = 0
 
-            if device.is_kernel_driver_active(interface) is True:
-              device.detach_kernel_driver(interface)
-              device.set_configuration()
+            if self.device.is_kernel_driver_active(interface) is True:
+              self.device.detach_kernel_driver(interface)
+              self.device.set_configuration()
               usbcore.util.claim_interface(device, interface)
 
             self.set_status('connected','Connected to '+ 'Device name here')
-            return device
+            return self.device
         except Exception as e:
             self.set_status('error',str(e))
             return None
