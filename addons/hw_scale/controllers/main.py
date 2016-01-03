@@ -72,7 +72,10 @@ class UsbScale(Thread):
 
             interface = 0
 
-            if self.device is not None and self.device.is_kernel_driver_active(interface) is True:
+            if self.device is None:
+              return self.device
+
+            if self.device.is_kernel_driver_active(interface) is True:
               self.device.detach_kernel_driver(interface)
               self.device.set_configuration()
               usbcore.util.claim_interface(self.device, interface)
@@ -119,13 +122,15 @@ class UsbScale(Thread):
                           continue
 
                     raw_weight = data[4] + data[5] * 256
+
                     if data[2] == DATA_MODE_OUNCES:
                       ounces = raw_weight * 0.1
                       weight = ounces
                     elif data[2] == DATA_MODE_GRAMS:
                       grams = raw_weight
                       weight = grams * .035274
-                      return weight
+
+                    return weight
                 except Exception as e:
                     self.set_status('error',str(e))
                     self.device = None
