@@ -18,7 +18,7 @@ such as the Mettler Toledo Ariva.
 
 """,
     'depends': ['hw_proxy'],
-    'external_dependencies': {'python': ['serial']},
+    'external_dependencies': {'python': ['pyusb']},
     'test': [
     ],
     'installable': True,
