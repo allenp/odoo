@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import logging
 
+from scale.scale import Scale
+
 import openerp
 import openerp.addons.hw_proxy.controllers.main as hw_proxy
 from openerp import http
 from openerp.http import request
 from openerp.tools.translate import _
 
-from scale.scale import Scale
 
 _logger = logging.getLogger(__name__)
 
